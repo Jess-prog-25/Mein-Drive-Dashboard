@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mein Google Drive Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #1a73e8;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-align: center;
+        }
+
+        .search-bar {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto 30px;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 15px 50px 15px 20px;
+            font-size: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 30px;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        .search-input:focus {
+            border-color: #1a73e8;
+            box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #666;
+        }
+
+        .filter-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .filter-tab {
+            padding: 10px 20px;
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        .filter-tab:hover {
+            background: #f0f0f0;
+        }
+
+        .filter-tab.active {
+            background: #1a73e8;
+            color: white;
+            border-color: #1a73e8;
+        }
+
+        .files-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .file-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .file-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+        }
+
+        .file-icon {
+            width: 40px;
+            height: 40px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            font-size: 24px;
+        }
+
+        .icon-doc { background: #4285f4; color: white; }
+        .icon-sheet { background: #0f9d58; color: white; }
+        .icon-slide { background: #f4b400; color: white; }
+        .icon-pdf { background: #ea4335; color: white; }
+        .icon-folder { background: #5f6368; color: white; }
+        .icon-image { background: #9c27b0; color: white; }
+        .icon-video { background: #ff5722; color: white; }
+
+        .file-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #202124;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .file-description {
+            color: #5f6368;
+            font-size: 14px;
+            margin-bottom: 15px;
+            height: 40px;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .file-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: #5f6368;
+        }
+
+        .file-date {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .file-link {
+            background: #1a73e8;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .file-link:hover {
+            background: #1557b0;
+            transform: scale(1.05);
+        }
+
+        .stats-bar {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 32px;
+            font-weight: 700;
+            color: #1a73e8;
+        }
+
+        .stat-label {
+            color: #5f6368;
+            font-size: 14px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 18px;
+            color: #5f6368;
+        }
+
+        .sign-in-button {
+            background: #1a73e8;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 20px auto;
+            display: block;
+        }
+
+        .sign-in-button:hover {
+            background: #1557b0;
+        }
+
+        @media (max-width: 768px) {
+            .files-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Mein Google Drive Dashboard</h1>
+        
+        <div class="search-bar">
+            <input type="text" class="search-input" id="searchInput" placeholder="Suche nach Dateien...">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <div class="stats-bar">
+            <div class="stat-item">
+                <div class="stat-number" id="totalFiles">0</div>
+                <div class="stat-label">Dateien gesamt</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="totalDocs">0</div>
+                <div class="stat-label">Dokumente</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="totalSheets">0</div>
+                <div class="stat-label">Tabellen</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="totalFolders">0</div>
+                <div class="stat-label">Ordner</div>
+            </div>
+        </div>
+
+        <div class="filter-tabs">
+            <div class="filter-tab active" onclick="filterFiles('all')">Alle Dateien</div>
+            <div class="filter-tab" onclick="filterFiles('docs')">📄 Dokumente</div>
+            <div class="filter-tab" onclick="filterFiles('sheets')">📊 Tabellen</div>
+            <div class="filter-tab" onclick="filterFiles('slides')">📽️ Präsentationen</div>
+            <div class="filter-tab" onclick="filterFiles('folders')">📁 Ordner</div>
+            <div class="filter-tab" onclick="filterFiles('recent')">🕐 Kürzlich</div>
+        </div>
+
+        <div id="content">
+            <div class="loading">
+                <p>⏳ Initialisiere Google Drive Dashboard...</p>
+                <button id="authorizeButton" class="sign-in-button" style="display:none;">Mit Google anmelden</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Neue Google Identity Services -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <!-- Google API Client Library -->
+    <script src="https://apis.google.com/js/api.js"></script>
+
+    <script>
+        // Ihre API Credentials - in einem IIFE um Konflikte zu vermeiden
+        (function() {
+            const CLIENT_ID = '266513225414-mj1ql2233v2hse7vsvt1l3v7g48kl1no.apps.googleusercontent.com';
+            const API_KEY = 'AIzaSyBa2aRtkBLhwVEHfdK5XW3eRFK_sCa4P1g';
+            const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
+            const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
+
+            let tokenClient;
+            let gapiInited = false;
+            let gisInited = false;
+            let currentFilter = 'all';
+            let allFiles = [];
+
+        // Beispieldaten für den Fall, dass die API nicht funktioniert
+        const demoData = [
+            {
+                id: '1',
+                title: 'Projektplan 2024',
+                description: 'Übersicht aller Projekte und Meilensteine für das Jahr 2024',
+                type: 'doc',
+                link: 'https://docs.google.com/document/d/example1',
+                modified: '2024-03-15',
+                icon: '📄'
+            },
+            {
+                id: '2',
+                title: 'Budget Übersicht',
+                description: 'Finanzplanung und Ausgabenübersicht Q1-Q4',
+                type: 'sheet',
+                link: 'https://docs.google.com/spreadsheets/d/example2',
+                modified: '2024-03-14',
+                icon: '📊'
+            }
+        ];
+
+        // Callback nach dem Laden der Google API
+        function gapiLoaded() {
+            gapi.load('client', initializeGapiClient);
+        }
+
+        // Initialisiere die Google API Client Library
+        async function initializeGapiClient() {
+            try {
+                await gapi.client.init({
+                    apiKey: API_KEY,
+                    discoveryDocs: [DISCOVERY_DOC],
+                });
+                gapiInited = true;
+                maybeEnableButtons();
+            } catch (error) {
+                console.error('Fehler beim Initialisieren der Google API:', error);
+                showError('Fehler beim Laden der Google API. Demo-Modus aktiviert.');
+                loadDemoData();
+            }
+        }
+
+        // Callback nach dem Laden der Google Identity Services
+        function gisLoaded() {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: CLIENT_ID,
+                scope: SCOPES,
+                callback: '', // Wird später definiert
+            });
+            gisInited = true;
+            maybeEnableButtons();
+        }
+
+        // Aktiviere Buttons wenn beide Libraries geladen sind
+        function maybeEnableButtons() {
+            if (gapiInited && gisInited) {
+                document.getElementById('authorizeButton').style.display = 'block';
+                document.getElementById('authorizeButton').onclick = handleAuthClick;
+            }
+        }
+
+        // Handle Authentifizierung
+        function handleAuthClick() {
+            tokenClient.callback = async (resp) => {
+                if (resp.error !== undefined) {
+                    throw (resp);
+                }
+                document.getElementById('authorizeButton').style.display = 'none';
+                await loadDriveFiles();
+            };
+
+            if (gapi.client.getToken() === null) {
+                // Fordere neuen Access Token an
+                tokenClient.requestAccessToken({prompt: 'consent'});
+            } else {
+                // Überspringe Anzeige des Consent Dialogs
+                tokenClient.requestAccessToken({prompt: ''});
+            }
+        }
+
+        // Lade Drive Dateien
+        async function loadDriveFiles() {
+            const content = document.getElementById('content');
+            content.innerHTML = '<div class="loading">⏳ Lade Ihre Drive-Dateien...</div>';
+            
+            try {
+                const response = await gapi.client.drive.files.list({
+                    'pageSize': 100,
+                    'fields': "files(id, name, mimeType, modifiedTime, description, webViewLink)",
+                    'orderBy': 'modifiedTime desc'
+                });
+
+                const files = response.result.files;
+                
+                if (!files || files.length === 0) {
+                    content.innerHTML = '<div class="loading">Keine Dateien gefunden</div>';
+                    return;
+                }
+                
+                // Verarbeite die echten Drive-Dateien
+                allFiles = files.map(file => ({
+                    id: file.id,
+                    title: file.name,
+                    description: file.description || 'Keine Beschreibung verfügbar',
+                    type: getFileTypeFromMime(file.mimeType),
+                    link: file.webViewLink,
+                    modified: file.modifiedTime,
+                    icon: getFileIcon(getFileTypeFromMime(file.mimeType)).symbol
+                }));
+                
+                updateStats();
+                displayFiles(allFiles);
+            } catch (error) {
+                console.error('Fehler beim Laden der Dateien:', error);
+                showError('Fehler beim Laden der Dateien. Demo-Modus aktiviert.');
+                loadDemoData();
+            }
+        }
+
+        // Lade Demo-Daten
+        function loadDemoData() {
+            allFiles = demoData;
+            updateStats();
+            displayFiles(allFiles);
+        }
+
+        // Zeige Fehlermeldung
+        function showError(message) {
+            console.error(message);
+            // Zeige trotzdem Demo-Daten
+        }
+
+        // Helper Funktionen
+        function getFileTypeFromMime(mimeType) {
+            const mimeMap = {
+                'application/vnd.google-apps.document': 'doc',
+                'application/vnd.google-apps.spreadsheet': 'sheet',
+                'application/vnd.google-apps.presentation': 'slide',
+                'application/vnd.google-apps.folder': 'folder',
+                'application/pdf': 'pdf',
+                'image/jpeg': 'image',
+                'image/png': 'image',
+                'video/mp4': 'video'
+            };
+            return mimeMap[mimeType] || 'doc';
+        }
+
+        function getFileIcon(type) {
+            const icons = {
+                'doc': { class: 'icon-doc', symbol: '📄' },
+                'sheet': { class: 'icon-sheet', symbol: '📊' },
+                'slide': { class: 'icon-slide', symbol: '📽️' },
+                'pdf': { class: 'icon-pdf', symbol: '📕' },
+                'folder': { class: 'icon-folder', symbol: '📁' },
+                'image': { class: 'icon-image', symbol: '🖼️' },
+                'video': { class: 'icon-video', symbol: '🎥' }
+            };
+            return icons[type] || { class: 'icon-doc', symbol: '📄' };
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            const options = { day: '2-digit', month: '2-digit', year: 'numeric' };
+            return date.toLocaleDateString('de-DE', options);
+        }
+
+        function updateStats() {
+            document.getElementById('totalFiles').textContent = allFiles.length;
+            document.getElementById('totalDocs').textContent = allFiles.filter(f => f.type === 'doc').length;
+            document.getElementById('totalSheets').textContent = allFiles.filter(f => f.type === 'sheet').length;
+            document.getElementById('totalFolders').textContent = allFiles.filter(f => f.type === 'folder').length;
+        }
+
+        function displayFiles(files) {
+            const content = document.getElementById('content');
+            
+            if (files.length === 0) {
+                content.innerHTML = '<div class="loading">Keine Dateien gefunden</div>';
+                return;
+            }
+
+            let html = '<div class="files-grid">';
+            
+            files.forEach(file => {
+                const icon = getFileIcon(file.type);
+                html += `
+                    <div class="file-card" onclick="window.open('${file.link}', '_blank')">
+                        <div class="file-icon ${icon.class}">${icon.symbol}</div>
+                        <h3 class="file-title">${file.title}</h3>
+                        <p class="file-description">${file.description}</p>
+                        <div class="file-meta">
+                            <div class="file-date">
+                                📅 ${formatDate(file.modified)}
+                            </div>
+                            <a href="${file.link}" target="_blank" class="file-link" onclick="event.stopPropagation()">
+                                Öffnen →
+                            </a>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            content.innerHTML = html;
+        }
+
+        function filterFiles(type) {
+            currentFilter = type;
+            
+            // Update active tab
+            document.querySelectorAll('.filter-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            let filteredFiles = allFiles;
+            
+            switch(type) {
+                case 'docs':
+                    filteredFiles = allFiles.filter(f => f.type === 'doc');
+                    break;
+                case 'sheets':
+                    filteredFiles = allFiles.filter(f => f.type === 'sheet');
+                    break;
+                case 'slides':
+                    filteredFiles = allFiles.filter(f => f.type === 'slide');
+                    break;
+                case 'folders':
+                    filteredFiles = allFiles.filter(f => f.type === 'folder');
+                    break;
+                case 'recent':
+                    filteredFiles = [...allFiles].sort((a, b) => 
+                        new Date(b.modified) - new Date(a.modified)
+                    ).slice(0, 10);
+                    break;
+            }
+            
+            displayFiles(filteredFiles);
+        }
+
+        // Suchfunktion
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const searchTerm = e.target.value.toLowerCase();
+            
+            if (searchTerm === '') {
+                displayFiles(allFiles);
+                return;
+            }
+            
+            const filtered = allFiles.filter(file => 
+                file.title.toLowerCase().includes(searchTerm) ||
+                file.description.toLowerCase().includes(searchTerm)
+            );
+            
+            displayFiles(filtered);
+        });
+
+        // Initialisierung
+        window.onload = function() {
+            // Lade Google APIs
+            gapiLoaded();
+            gisLoaded();
+        };
+        })(); // Ende des IIFE
+    </script>
+</body>
+</html>
