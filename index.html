@@ -275,8 +275,8 @@
         </div>
 
         <div class="filter-tabs">
-            <div class="filter-tab active" onclick="filterFiles('all')">Alle Dateien</div>
-            <div class="filter-tab" onclick="filterFiles('docs')">📄 Dokumente</div>
+            <div class="filter-tab active" onclick="filterFiles('all', this)">Alle Dateien</div>
+            <div class="filter-tab" onclick="filterFiles('docs', this)">📄 Dokumente</div>
             <div class="filter-tab" onclick="filterFiles('sheets')">📊 Tabellen</div>
             <div class="filter-tab" onclick="filterFiles('slides')">📽️ Präsentationen</div>
             <div class="filter-tab" onclick="filterFiles('folders')">📁 Ordner</div>
@@ -517,14 +517,14 @@
             content.innerHTML = html;
         }
 
-        function filterFiles(type) {
-            currentFilter = type;
-            
-            // Update active tab
-            document.querySelectorAll('.filter-tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            event.target.classList.add('active');
+        function filterFiles(type, element) {
+    currentFilter = type;
+    
+    // Update active tab
+    document.querySelectorAll('.filter-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    if (element) element.classList.add('active');
             
             let filteredFiles = allFiles;
             
