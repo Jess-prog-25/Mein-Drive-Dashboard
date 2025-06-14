@@ -338,39 +338,60 @@
         }
 
         // Initialisiere die Google API Client Library
-        async function initializeGapiClient() {
-            try {
-                await gapi.client.init({
-                    apiKey: API_KEY,
-                    discoveryDocs: [DISCOVERY_DOC],
-                });
-                gapiInited = true;
-                maybeEnableButtons();
-            } catch (error) {
-                console.error('Fehler beim Initialisieren der Google API:', error);
-                showError('Fehler beim Laden der Google API. Demo-Modus aktiviert.');
-                loadDemoData();
-            }
-        }
-
-        // Callback nach dem Laden der Google Identity Services
-        function gisLoaded() {
-            tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: CLIENT_ID,
-                scope: SCOPES,
-                callback: '', // Wird später definiert
+        async function loadDriveFiles() {
+    const content = document.getElementById('content');
+    content.innerHTML = '<div class="loading">⏳ Lade Ihre Drive-Dateien...</div>';
+    
+    try {
+        let allLoadedFiles = [];
+        let pageToken = null;
+        let pageCount = 0;
+        
+        // Lade ALLE Dateien mit Pagination
+        do {
+            const response = await gapi.client.drive.files.list({
+                'pageSize': 1000, // Maximum pro Anfrage
+                'fields': "nextPageToken, files(id, name, mimeType, modifiedTime, description, webViewLink)",
+                'orderBy': 'modifiedTime desc',
+                'pageToken': pageToken
             });
-            gisInited = true;
-            maybeEnableButtons();
-        }
-
-        // Aktiviere Buttons wenn beide Libraries geladen sind
-        function maybeEnableButtons() {
-            if (gapiInited && gisInited) {
-                document.getElementById('authorizeButton').style.display = 'block';
-                document.getElementById('authorizeButton').onclick = handleAuthClick;
+            
+            if (response.result.files && response.result.files.length > 0) {
+                allLoadedFiles = allLoadedFiles.concat(response.result.files);
+                pageCount++;
+                
+                // Update Ladefortschritt
+                content.innerHTML = `<div class="loading">⏳ Lade Ihre Drive-Dateien... ${allLoadedFiles.length} Dateien geladen</div>`;
             }
+            
+            pageToken = response.result.nextPageToken;
+        } while (pageToken);
+        
+        if (allLoadedFiles.length === 0) {
+            content.innerHTML = '<div class="loading">Keine Dateien gefunden</div>';
+            return;
         }
+        
+        // Verarbeite alle Dateien
+        allFiles = allLoadedFiles.map(file => ({
+            id: file.id,
+            title: file.name,
+            description: file.description || 'Keine Beschreibung verfügbar',
+            type: getFileTypeFromMime(file.mimeType),
+            link: file.webViewLink,
+            modified: file.modifiedTime,
+            icon: getFileIcon(getFileTypeFromMime(file.mimeType)).symbol
+        }));
+        
+        console.log(`Insgesamt ${allFiles.length} Dateien geladen!`);
+        updateStats();
+        displayFiles(allFiles);
+        
+    } catch (error) {
+        console.error('Fehler beim Laden der Dateien:', error);
+        showError('Fehler beim Laden der Dateien. Bitte versuchen Sie es erneut.');
+    }
+}
 
         // Handle Authentifizierung
         function handleAuthClick() {
