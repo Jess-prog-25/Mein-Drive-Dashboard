@@ -235,6 +235,25 @@
             background: #1557b0;
         }
 
+        .load-more {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .load-more button {
+            background: #1a73e8;
+            color: white;
+            border: none;
+            padding: 10px 30px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .load-more button:hover {
+            background: #1557b0;
+        }
+
         @media (max-width: 768px) {
             .files-grid {
                 grid-template-columns: 1fr;
@@ -275,12 +294,12 @@
         </div>
 
         <div class="filter-tabs">
-            <div class="filter-tab active" onclick="filterFiles('all', this)">Alle Dateien</div>
-            <div class="filter-tab" onclick="filterFiles('docs', this)">📄 Dokumente</div>
-            <div class="filter-tab" onclick="filterFiles('sheets')">📊 Tabellen</div>
-            <div class="filter-tab" onclick="filterFiles('slides')">📽️ Präsentationen</div>
-            <div class="filter-tab" onclick="filterFiles('folders')">📁 Ordner</div>
-            <div class="filter-tab" onclick="filterFiles('recent')">🕐 Kürzlich</div>
+            <div class="filter-tab active" onclick="window.filterFiles('all', this)">Alle Dateien</div>
+            <div class="filter-tab" onclick="window.filterFiles('docs', this)">📄 Dokumente</div>
+            <div class="filter-tab" onclick="window.filterFiles('sheets', this)">📊 Tabellen</div>
+            <div class="filter-tab" onclick="window.filterFiles('slides', this)">📽️ Präsentationen</div>
+            <div class="filter-tab" onclick="window.filterFiles('folders', this)">📁 Ordner</div>
+            <div class="filter-tab" onclick="window.filterFiles('recent', this)">🕐 Kürzlich</div>
         </div>
 
         <div id="content">
@@ -291,181 +310,133 @@
         </div>
     </div>
 
-    <!-- Neue Google Identity Services -->
+    <!-- Google Identity Services -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <!-- Google API Client Library -->
     <script src="https://apis.google.com/js/api.js"></script>
 
     <script>
-        // Ihre API Credentials - in einem IIFE um Konflikte zu vermeiden
-        (function() {
-            const CLIENT_ID = '266513225414-mj1ql2233v2hse7vsvt1l3v7g48kl1no.apps.googleusercontent.com';
-            const API_KEY = 'AIzaSyBa2aRtkBLhwVEHfdK5XW3eRFK_sCa4P1g';
-            const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
-            const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
+        // Globale Variablen
+        window.CLIENT_ID = '266513225414-mj1ql2233v2hse7vsvt1l3v7g48kl1no.apps.googleusercontent.com';
+        window.API_KEY = 'AIzaSyBa2aRtkBLhwVEHfdK5XW3eRFK_sCa4P1g';
+        window.DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
+        window.SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
 
-            let tokenClient;
-            let gapiInited = false;
-            let gisInited = false;
-            let currentFilter = 'all';
-            let allFiles = [];
+        window.tokenClient = null;
+        window.gapiInited = false;
+        window.gisInited = false;
+        window.currentFilter = 'all';
+        window.allFiles = [];
+        window.displayedFiles = [];
 
-        // Beispieldaten für den Fall, dass die API nicht funktioniert
-        const demoData = [
-            {
-                id: '1',
-                title: 'Projektplan 2024',
-                description: 'Übersicht aller Projekte und Meilensteine für das Jahr 2024',
-                type: 'doc',
-                link: 'https://docs.google.com/document/d/example1',
-                modified: '2024-03-15',
-                icon: '📄'
-            },
-            {
-                id: '2',
-                title: 'Budget Übersicht',
-                description: 'Finanzplanung und Ausgabenübersicht Q1-Q4',
-                type: 'sheet',
-                link: 'https://docs.google.com/spreadsheets/d/example2',
-                modified: '2024-03-14',
-                icon: '📊'
-            }
-        ];
-
-        // Callback nach dem Laden der Google API
-        function gapiLoaded() {
-            gapi.load('client', initializeGapiClient);
+        // Google API Callbacks
+        window.gapiLoaded = function() {
+            gapi.load('client', window.initializeGapiClient);
         }
 
-        // Initialisiere die Google API Client Library
-        async function loadDriveFiles() {
-    const content = document.getElementById('content');
-    content.innerHTML = '<div class="loading">⏳ Lade Ihre Drive-Dateien...</div>';
-    
-    try {
-        let allLoadedFiles = [];
-        let pageToken = null;
-        let pageCount = 0;
-        
-        // Lade ALLE Dateien mit Pagination
-        do {
-            const response = await gapi.client.drive.files.list({
-                'pageSize': 1000, // Maximum pro Anfrage
-                'fields': "nextPageToken, files(id, name, mimeType, modifiedTime, description, webViewLink)",
-                'orderBy': 'modifiedTime desc',
-                'pageToken': pageToken
+        window.gisLoaded = function() {
+            window.tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: window.CLIENT_ID,
+                scope: window.SCOPES,
+                callback: '', // wird später definiert
             });
-            
-            if (response.result.files && response.result.files.length > 0) {
-                allLoadedFiles = allLoadedFiles.concat(response.result.files);
-                pageCount++;
-                
-                // Update Ladefortschritt
-                content.innerHTML = `<div class="loading">⏳ Lade Ihre Drive-Dateien... ${allLoadedFiles.length} Dateien geladen</div>`;
-            }
-            
-            pageToken = response.result.nextPageToken;
-        } while (pageToken);
-        
-        if (allLoadedFiles.length === 0) {
-            content.innerHTML = '<div class="loading">Keine Dateien gefunden</div>';
-            return;
+            window.gisInited = true;
+            window.maybeEnableButtons();
         }
-        
-        // Verarbeite alle Dateien
-        allFiles = allLoadedFiles.map(file => ({
-            id: file.id,
-            title: file.name,
-            description: file.description || 'Keine Beschreibung verfügbar',
-            type: getFileTypeFromMime(file.mimeType),
-            link: file.webViewLink,
-            modified: file.modifiedTime,
-            icon: getFileIcon(getFileTypeFromMime(file.mimeType)).symbol
-        }));
-        
-        console.log(`Insgesamt ${allFiles.length} Dateien geladen!`);
-        updateStats();
-        displayFiles(allFiles);
-        
-    } catch (error) {
-        console.error('Fehler beim Laden der Dateien:', error);
-        showError('Fehler beim Laden der Dateien. Bitte versuchen Sie es erneut.');
-    }
-}
 
-        // Handle Authentifizierung
-        function handleAuthClick() {
-            tokenClient.callback = async (resp) => {
+        window.initializeGapiClient = async function() {
+            try {
+                await gapi.client.init({
+                    apiKey: window.API_KEY,
+                    discoveryDocs: [window.DISCOVERY_DOC],
+                });
+                window.gapiInited = true;
+                window.maybeEnableButtons();
+            } catch (error) {
+                console.error('Fehler beim Initialisieren der Google API:', error);
+                document.getElementById('content').innerHTML = '<div class="loading">Fehler beim Laden der Google API</div>';
+            }
+        }
+
+        window.maybeEnableButtons = function() {
+            if (window.gapiInited && window.gisInited) {
+                document.getElementById('authorizeButton').style.display = 'block';
+                document.getElementById('authorizeButton').onclick = window.handleAuthClick;
+            }
+        }
+
+        window.handleAuthClick = function() {
+            window.tokenClient.callback = async (resp) => {
                 if (resp.error !== undefined) {
                     throw (resp);
                 }
                 document.getElementById('authorizeButton').style.display = 'none';
-                await loadDriveFiles();
+                await window.loadAllDriveFiles();
             };
 
             if (gapi.client.getToken() === null) {
-                // Fordere neuen Access Token an
-                tokenClient.requestAccessToken({prompt: 'consent'});
+                window.tokenClient.requestAccessToken({prompt: 'consent'});
             } else {
-                // Überspringe Anzeige des Consent Dialogs
-                tokenClient.requestAccessToken({prompt: ''});
+                window.tokenClient.requestAccessToken({prompt: ''});
             }
         }
 
-        // Lade Drive Dateien
-        async function loadDriveFiles() {
+        // Lade ALLE Drive Dateien
+        window.loadAllDriveFiles = async function() {
             const content = document.getElementById('content');
             content.innerHTML = '<div class="loading">⏳ Lade Ihre Drive-Dateien...</div>';
             
             try {
-                const response = await gapi.client.drive.files.list({
-                    'pageSize': 100,
-                    'fields': "files(id, name, mimeType, modifiedTime, description, webViewLink)",
-                    'orderBy': 'modifiedTime desc'
-                });
-
-                const files = response.result.files;
+                let allLoadedFiles = [];
+                let pageToken = null;
                 
-                if (!files || files.length === 0) {
+                // Lade alle Dateien mit Pagination
+                do {
+                    const response = await gapi.client.drive.files.list({
+                        'pageSize': 1000, // Maximum
+                        'fields': "nextPageToken, files(id, name, mimeType, modifiedTime, description, webViewLink)",
+                        'orderBy': 'modifiedTime desc',
+                        'pageToken': pageToken,
+                        'includeItemsFromAllDrives': true,
+                        'supportsAllDrives': true
+                    });
+                    
+                    if (response.result.files && response.result.files.length > 0) {
+                        allLoadedFiles = allLoadedFiles.concat(response.result.files);
+                        content.innerHTML = `<div class="loading">⏳ Lade Ihre Drive-Dateien... ${allLoadedFiles.length} Dateien gefunden</div>`;
+                    }
+                    
+                    pageToken = response.result.nextPageToken;
+                } while (pageToken);
+                
+                if (allLoadedFiles.length === 0) {
                     content.innerHTML = '<div class="loading">Keine Dateien gefunden</div>';
                     return;
                 }
                 
-                // Verarbeite die echten Drive-Dateien
-                allFiles = files.map(file => ({
+                // Verarbeite alle Dateien
+                window.allFiles = allLoadedFiles.map(file => ({
                     id: file.id,
                     title: file.name,
-                    description: file.description || 'Keine Beschreibung verfügbar',
-                    type: getFileTypeFromMime(file.mimeType),
-                    link: file.webViewLink,
+                    description: file.description || '',
+                    type: window.getFileTypeFromMime(file.mimeType),
+                    link: file.webViewLink || '#',
                     modified: file.modifiedTime,
-                    icon: getFileIcon(getFileTypeFromMime(file.mimeType)).symbol
+                    icon: window.getFileIcon(window.getFileTypeFromMime(file.mimeType)).symbol
                 }));
                 
-                updateStats();
-                displayFiles(allFiles);
+                console.log(`${window.allFiles.length} Dateien insgesamt geladen!`);
+                window.updateStats();
+                window.displayFiles(window.allFiles);
+                
             } catch (error) {
                 console.error('Fehler beim Laden der Dateien:', error);
-                showError('Fehler beim Laden der Dateien. Demo-Modus aktiviert.');
-                loadDemoData();
+                content.innerHTML = '<div class="loading">Fehler beim Laden der Dateien. Bitte versuchen Sie es erneut.</div>';
             }
         }
 
-        // Lade Demo-Daten
-        function loadDemoData() {
-            allFiles = demoData;
-            updateStats();
-            displayFiles(allFiles);
-        }
-
-        // Zeige Fehlermeldung
-        function showError(message) {
-            console.error(message);
-            // Zeige trotzdem Demo-Daten
-        }
-
         // Helper Funktionen
-        function getFileTypeFromMime(mimeType) {
+        window.getFileTypeFromMime = function(mimeType) {
             const mimeMap = {
                 'application/vnd.google-apps.document': 'doc',
                 'application/vnd.google-apps.spreadsheet': 'sheet',
@@ -479,7 +450,7 @@
             return mimeMap[mimeType] || 'doc';
         }
 
-        function getFileIcon(type) {
+        window.getFileIcon = function(type) {
             const icons = {
                 'doc': { class: 'icon-doc', symbol: '📄' },
                 'sheet': { class: 'icon-sheet', symbol: '📊' },
@@ -492,20 +463,20 @@
             return icons[type] || { class: 'icon-doc', symbol: '📄' };
         }
 
-        function formatDate(dateString) {
+        window.formatDate = function(dateString) {
             const date = new Date(dateString);
             const options = { day: '2-digit', month: '2-digit', year: 'numeric' };
             return date.toLocaleDateString('de-DE', options);
         }
 
-        function updateStats() {
-            document.getElementById('totalFiles').textContent = allFiles.length;
-            document.getElementById('totalDocs').textContent = allFiles.filter(f => f.type === 'doc').length;
-            document.getElementById('totalSheets').textContent = allFiles.filter(f => f.type === 'sheet').length;
-            document.getElementById('totalFolders').textContent = allFiles.filter(f => f.type === 'folder').length;
+        window.updateStats = function() {
+            document.getElementById('totalFiles').textContent = window.allFiles.length;
+            document.getElementById('totalDocs').textContent = window.allFiles.filter(f => f.type === 'doc').length;
+            document.getElementById('totalSheets').textContent = window.allFiles.filter(f => f.type === 'sheet').length;
+            document.getElementById('totalFolders').textContent = window.allFiles.filter(f => f.type === 'folder').length;
         }
 
-        function displayFiles(files) {
+        window.displayFiles = function(files) {
             const content = document.getElementById('content');
             
             if (files.length === 0) {
@@ -515,8 +486,11 @@
 
             let html = '<div class="files-grid">';
             
-            files.forEach(file => {
-                const icon = getFileIcon(file.type);
+            // Zeige maximal 50 Dateien auf einmal
+            const filesToShow = files.slice(0, 50);
+            
+            filesToShow.forEach(file => {
+                const icon = window.getFileIcon(file.type);
                 html += `
                     <div class="file-card" onclick="window.open('${file.link}', '_blank')">
                         <div class="file-icon ${icon.class}">${icon.symbol}</div>
@@ -524,7 +498,45 @@
                         <p class="file-description">${file.description}</p>
                         <div class="file-meta">
                             <div class="file-date">
-                                📅 ${formatDate(file.modified)}
+                                📅 ${window.formatDate(file.modified)}
+                            </div>
+                            <a href="${file.link}" target="_blank" class="file-link" onclick="event.stopPropagation()">
+                                Öffnen →
+                            </a>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            
+            if (files.length > 50) {
+                html += `
+                    <div class="load-more">
+                        <p>Zeige ${filesToShow.length} von ${files.length} Dateien</p>
+                        <button onclick="window.showAllFiles()">Alle anzeigen</button>
+                    </div>
+                `;
+            }
+            
+            content.innerHTML = html;
+            window.displayedFiles = files;
+        }
+
+        window.showAllFiles = function() {
+            const content = document.getElementById('content');
+            let html = '<div class="files-grid">';
+            
+            window.displayedFiles.forEach(file => {
+                const icon = window.getFileIcon(file.type);
+                html += `
+                    <div class="file-card" onclick="window.open('${file.link}', '_blank')">
+                        <div class="file-icon ${icon.class}">${icon.symbol}</div>
+                        <h3 class="file-title">${file.title}</h3>
+                        <p class="file-description">${file.description}</p>
+                        <div class="file-meta">
+                            <div class="file-date">
+                                📅 ${window.formatDate(file.modified)}
                             </div>
                             <a href="${file.link}" target="_blank" class="file-link" onclick="event.stopPropagation()">
                                 Öffnen →
@@ -538,38 +550,38 @@
             content.innerHTML = html;
         }
 
-        function filterFiles(type, element) {
-    currentFilter = type;
-    
-    // Update active tab
-    document.querySelectorAll('.filter-tab').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    if (element) element.classList.add('active');
+        window.filterFiles = function(type, element) {
+            window.currentFilter = type;
             
-            let filteredFiles = allFiles;
+            // Update active tab
+            document.querySelectorAll('.filter-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            if (element) element.classList.add('active');
+            
+            let filteredFiles = window.allFiles;
             
             switch(type) {
                 case 'docs':
-                    filteredFiles = allFiles.filter(f => f.type === 'doc');
+                    filteredFiles = window.allFiles.filter(f => f.type === 'doc');
                     break;
                 case 'sheets':
-                    filteredFiles = allFiles.filter(f => f.type === 'sheet');
+                    filteredFiles = window.allFiles.filter(f => f.type === 'sheet');
                     break;
                 case 'slides':
-                    filteredFiles = allFiles.filter(f => f.type === 'slide');
+                    filteredFiles = window.allFiles.filter(f => f.type === 'slide');
                     break;
                 case 'folders':
-                    filteredFiles = allFiles.filter(f => f.type === 'folder');
+                    filteredFiles = window.allFiles.filter(f => f.type === 'folder');
                     break;
                 case 'recent':
-                    filteredFiles = [...allFiles].sort((a, b) => 
+                    filteredFiles = [...window.allFiles].sort((a, b) => 
                         new Date(b.modified) - new Date(a.modified)
-                    ).slice(0, 10);
+                    ).slice(0, 50);
                     break;
             }
             
-            displayFiles(filteredFiles);
+            window.displayFiles(filteredFiles);
         }
 
         // Suchfunktion
@@ -577,25 +589,23 @@
             const searchTerm = e.target.value.toLowerCase();
             
             if (searchTerm === '') {
-                displayFiles(allFiles);
+                window.displayFiles(window.allFiles);
                 return;
             }
             
-            const filtered = allFiles.filter(file => 
+            const filtered = window.allFiles.filter(file => 
                 file.title.toLowerCase().includes(searchTerm) ||
                 file.description.toLowerCase().includes(searchTerm)
             );
             
-            displayFiles(filtered);
+            window.displayFiles(filtered);
         });
 
         // Initialisierung
         window.onload = function() {
-            // Lade Google APIs
-            gapiLoaded();
-            gisLoaded();
+            window.gapiLoaded();
+            window.gisLoaded();
         };
-        })(); // Ende des IIFE
     </script>
 </body>
 </html>
